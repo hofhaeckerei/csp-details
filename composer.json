@@ -1,0 +1,28 @@
+{
+  "name": "h4ck3r31/csp-details",
+  "description": "TYPO3 Content-Security-Policy Violation Details",
+  "license": "GPL-2.0-or-later",
+  "type": "typo3-cms-extension",
+  "authors": [
+    {
+      "name": "Oliver Hader",
+      "email": "oliver@typo3.org"
+    }
+  ],
+  "require": {
+    "typo3/cms-core": "^12.4 || 13.0.x-dev"
+  },
+  "autoload": {
+    "psr-4": {
+      "H4ck3r31\\CspDetails\\": "Classes/"
+    }
+  },
+  "extra": {
+    "typo3/cms": {
+      "extension-key": "csp_details"
+    },
+    "branch-alias": {
+      "dev-main": "1.x.x-dev"
+    }
+  }
+}

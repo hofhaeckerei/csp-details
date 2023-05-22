@@ -1,0 +1,4 @@
+# cat=basic; type=boolean; label=Whether resolving details is enabled
+enabled=0
+# cat=basic; type=options[filesystem var/log/csp-details/{uuid}.md=file,database field sys_http_report.csp_details=db]; label=Where to persist details
+persistence=file

@@ -1,0 +1,8 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  H4ck3r31\CspDetails\:
+    resource: '../Classes/*'
