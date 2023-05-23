@@ -2,7 +2,6 @@
 namespace H4ck3r31\CspDetails;
 
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
-use TYPO3\CMS\Core\Page\JavaScriptModuleInstruction;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -19,11 +18,11 @@ class PageRendererHook
         }
 
         $pageRenderer = GeneralUtility::makeInstance(PageRenderer::class);
-        $pageRenderer->getJavaScriptRenderer()->addJavaScriptModuleInstruction(
-            JavaScriptModuleInstruction::create(
-                '@h4ck3r31/csp-details/violation-handler.js',
-                'CspDetailsViolationHandler'
-            )->instance()
+        $pageRenderer->addJsLibrary(
+            name: '@h4ck3r31/csp-details/violation-handler.js',
+            file: 'EXT:csp_details/Resources/Public/JavaScript/violation-handler.js',
+            type: 'module',
+            forceOnTop: true,
         );
     }
 }

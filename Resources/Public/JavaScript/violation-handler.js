@@ -13,7 +13,7 @@ const knownSecurityPolicyViolationEventProps = [
     'sample',
 ];
 
-export class CspDetailsViolationHandler {
+class CspDetailsViolationHandler {
     static isActive = false;
 
     constructor() {
@@ -82,4 +82,5 @@ export class CspDetailsViolationHandler {
         }
     }
 }
-
+const activeCspDetailsViolationHandler = new CspDetailsViolationHandler();
+export { activeCspDetailsViolationHandler, CspDetailsViolationHandler };
