@@ -11,6 +11,7 @@ use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Core\Http\NullResponse;
 use TYPO3\CMS\Core\Middleware\AbstractContentSecurityPolicyReporter;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\PolicyProvider;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Reporting\ReportDetails;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Reporting\ReportRepository;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Reporting\ReportDemand;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Scope;
@@ -50,9 +51,11 @@ class ContentSecurityPolicyDetailsReporter extends AbstractContentSecurityPolicy
         }
         $requestTime = (int)($request->getQueryParams()['requestTime'] ?? 0);
         $data = json_decode($payload, true);
-        $report = $data['csp-report'] ?? [];
-        $report = $this->anonymizeDetails($report);
-        $summary = $this->generateReportSummary($scope, $report);
+        $originalReport = $data['csp-report'] ?? [];
+        $originalReport = $this->anonymizeDetails($originalReport);
+        // @todo see https://review.typo3.org/c/Packages/TYPO3.CMS/+/79136
+        $reportDetails = class_exists(ReportDetails::class) ? new ReportDetails($originalReport) : $originalReport;
+        $summary = $this->generateReportSummary($scope, $reportDetails);
 
         $demand = ReportDemand::forSummaries([$summary]);
         $demand->requestTime = $requestTime;
@@ -62,7 +65,7 @@ class ContentSecurityPolicyDetailsReporter extends AbstractContentSecurityPolicy
         // note: it might happen, that the default report was not persisted yet (concurrent requests)
         $existingReport = $existingReports[0] ?? null;
 
-        $cspDetails = array_filter(
+        $enrichment = array_filter(
             $data,
             static fn (string $key) => $key === 'document' || $key === 'navigator',
             ARRAY_FILTER_USE_KEY
@@ -71,11 +74,11 @@ class ContentSecurityPolicyDetailsReporter extends AbstractContentSecurityPolicy
         $this->logger->debug(
             sprintf(
                 "Document:\n%s",
-                    $this->indent(($cspDetails['document']['html'] ?? '') . "\n")
+                    $this->indent(($enrichment['document']['html'] ?? '') . "\n")
             ),
             [
                 'summary' => $summary,
-                'navigator' => $cspDetails['navigator'] ?? null,
+                'navigator' => $enrichment['navigator'] ?? null,
                 'uuid' => $existingReport?->uuid,
                 'meta' => $existingReport?->meta,
                 'report' => $existingReport?->details,
@@ -102,7 +105,7 @@ class ContentSecurityPolicyDetailsReporter extends AbstractContentSecurityPolicy
         $reportingUriBase = $this->policyProvider->getDefaultReportingUriBase($scope, $request, false);
         return $request->getMethod() === 'POST'
             && str_starts_with($normalizedParams->getRequestUri(), (string)$reportingUriBase)
-            && $contentTypeHeader === 'application/csp-report+csp-details';
+            && $contentTypeHeader === 'application/csp-report+enrichment';
     }
 
     private function resolveScope(ServerRequestInterface $request): ?Scope

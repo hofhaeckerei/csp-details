@@ -34,7 +34,7 @@ class CspDetailsViolationHandler {
             }
 
             const report = this.normalizeSecurityPolicyViolationEvent(evt);
-            const details = {
+            const enrichment = {
                 'csp-report': report,
                 document: {
                     html: document.body.parentElement.outerHTML,
@@ -50,8 +50,8 @@ class CspDetailsViolationHandler {
                 fetch(reportUriMatches.groups.reportUri, {
                     method: 'POST',
                     cache: 'no-cache',
-                    headers: { 'Content-Type': 'application/csp-report+csp-details' },
-                    body: JSON.stringify(details),
+                    headers: { 'Content-Type': 'application/csp-report+enrichment' },
+                    body: JSON.stringify(enrichment),
                 });
             }, 500)
         });
