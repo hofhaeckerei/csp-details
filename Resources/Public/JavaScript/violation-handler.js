@@ -24,7 +24,7 @@ class CspDetailsViolationHandler {
         // https://chromestatus.com/feature/5164860656582656 `ReportingObserver` is probably
         // not supported when it actually would be interesting to get more details
         document.addEventListener('securitypolicyviolation', (evt) => {
-            if (evt.sourceFile && this.isValidUri(evt.sourceFile)) {
+            if (evt.sourceFile && this.isValidUri(evt.sourceFile) && evt.sourceFile !== evt.documentURI) {
                 return;
             }
 
