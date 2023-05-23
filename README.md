@@ -18,19 +18,12 @@ take care of rotating/compressing these files or just have it enabled only while
 
 ## Configuration
 
-ℹ️ This package needs to be enabled explicity!
+ℹ️ This package needs to be enabled explicity via Admin Tools, Extension Settings!
 
-Extension Configurations settings (via Admin Tools, Extension Settings)
-can be used to adjust the behavior of this package, as shown below:
+Once enabled, details are logged to `var/log/typo3_csp-details_*.log`.
 
-```patch
-+        'csp_details' => [
-+            'enabled' => '0',
-+            'persistence' => 'file',
-+        ],
-```
+⚠️ Logged details might contain tokens or other private details of the current user sessions.
+Please make sure to frequently clean up these files, and just enable the debug functionality of
+this package just for a very limited time.
 
-* `enabled (bool, default '0')` : Whether to capture additional CSP details at all
-* `persistence ('file'|'db', default 'file')`: Where to persist the details
-  + `file`: create markdown files at `var/log/csp-details/{uuid}.md`
-  + `db`: store to additional database field `sys_http_report.csp_details`
+

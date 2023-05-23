@@ -45,11 +45,15 @@ class CspDetailsViolationHandler {
                     webdriver: navigator.webdriver,
                 }
             };
-            fetch(reportUriMatches.groups.reportUri, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/csp-report+csp-details' },
-                body: JSON.stringify(details),
-            });
+            // defer additional requests a bit, to have regular report entity persisted
+            setTimeout(() => {
+                fetch(reportUriMatches.groups.reportUri, {
+                    method: 'POST',
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'application/csp-report+csp-details' },
+                    body: JSON.stringify(details),
+                });
+            }, 500)
         });
     }
 

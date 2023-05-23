@@ -4,21 +4,20 @@ namespace H4ck3r31\CspDetails;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
-use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Core\Http\NullResponse;
 use TYPO3\CMS\Core\Middleware\AbstractContentSecurityPolicyReporter;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\PolicyProvider;
-use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Reporting\Report;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Reporting\ReportRepository;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Reporting\ReportDemand;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Scope;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-class ContentSecurityPolicyDetailsReporter extends AbstractContentSecurityPolicyReporter
+class ContentSecurityPolicyDetailsReporter extends AbstractContentSecurityPolicyReporter implements LoggerAwareInterface
 {
+    use LoggerAwareTrait;
     use ExtensionConfigurationTrait;
 
     // @todo `AbstractContentSecurityPolicyReporter` should become a trait in the TYPO3 core
@@ -60,10 +59,8 @@ class ContentSecurityPolicyDetailsReporter extends AbstractContentSecurityPolicy
         $demand->scope = $scope;
         $existingReports = $this->reportRepository->findAllSummarized($demand);
 
-        $uuid = $existingReports[0]?->uuid;
-        if ($uuid === null) {
-            return;
-        }
+        // note: it might happen, that the default report was not persisted yet (concurrent requests)
+        $existingReport = $existingReports[0] ?? null;
 
         $cspDetails = array_filter(
             $data,
@@ -71,52 +68,25 @@ class ContentSecurityPolicyDetailsReporter extends AbstractContentSecurityPolicy
             ARRAY_FILTER_USE_KEY
         );
 
-        switch ($this->getPersistence($this->extensionConfiguration)) {
-            case 'database':
-                $this->persistToDatabase($existingReports[0], $cspDetails);
-                break;
-            case 'file':
-            default:
-                $this->persistToFileSystem($existingReports[0], $cspDetails);
-        }
-    }
-
-    protected function persistToFileSystem(Report $existingReport, array $cspDetails): void
-    {
-        $path = Environment::getProjectPath() . '/var/log/csp-details/';
-        if (!file_exists($path)) {
-            GeneralUtility::mkdir_deep($path);
-        }
-        $filePath = $path . $existingReport->uuid . '.md';
-        file_put_contents($filePath, implode("\n", [
-            '## UUID',
-            '`' . $existingReport->uuid . '`',
-            '',
-            '## Meta',
-            '`' . json_encode($existingReport->meta, JSON_UNESCAPED_SLASHES) . '`',
-            '',
-            '## Report',
-            '`' . json_encode($existingReport->details, JSON_UNESCAPED_SLASHES) . '`',
-            '',
-            '## Navigator',
-            '`' . json_encode($cspDetails['navigator'] ?? null, JSON_UNESCAPED_SLASHES) . '`',
-            '',
-            '## Document',
-            '```',
-            ($cspDetails['document']['html'] ?? ''),
-            '```',
-        ]));
-    }
-
-    protected function persistToDatabase(Report $existingReport, array $cspDetails): void
-    {
-        $connection = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getConnectionForTable('sys_http_report');
-        $connection->update(
-            'sys_http_report',
-            ['csp_details' => json_encode($cspDetails)],
-            ['uuid' => (string)$existingReport->uuid]
+        $this->logger->debug(
+            sprintf(
+                "Document:\n%s",
+                    $this->indent(($cspDetails['document']['html'] ?? '') . "\n")
+            ),
+            [
+                'summary' => $summary,
+                'navigator' => $cspDetails['navigator'] ?? null,
+                'uuid' => $existingReport?->uuid,
+                'meta' => $existingReport?->meta,
+                'report' => $existingReport?->details,
+            ]
         );
+    }
+
+    protected function indent(string $value, string $indention = "\t"): string
+    {
+        $lines = preg_split('#\v#', $value);
+        return implode("\n", array_map(static fn (string $line) => $indention . $line, $lines));
     }
 
     protected function isCspReport(Scope $scope, ServerRequestInterface $request): bool

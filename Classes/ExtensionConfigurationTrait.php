@@ -9,9 +9,4 @@ trait ExtensionConfigurationTrait
     {
         return $extensionConfiguration->get('csp_details', 'enabled');
     }
-
-    public function getPersistence(ExtensionConfiguration $extensionConfiguration): string
-    {
-        return $extensionConfiguration->get('csp_details', 'persistence') ?: 'file';
-    }
 }
