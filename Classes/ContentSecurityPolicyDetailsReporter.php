@@ -10,6 +10,8 @@ use TYPO3\CMS\Core\Configuration\ExtensionConfiguration;
 use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Core\Http\NullResponse;
 use TYPO3\CMS\Core\Middleware\AbstractContentSecurityPolicyReporter;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Configuration\DispositionConfiguration;
+use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Configuration\DispositionMapFactory;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\PolicyProvider;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Reporting\ReportDetails;
 use TYPO3\CMS\Core\Security\ContentSecurityPolicy\Reporting\ReportRepository;
@@ -24,6 +26,7 @@ class ContentSecurityPolicyDetailsReporter extends AbstractContentSecurityPolicy
     // @todo `AbstractContentSecurityPolicyReporter` should become a trait in the TYPO3 core
     public function __construct(
         protected readonly PolicyProvider $policyProvider,
+        protected readonly DispositionMapFactory $dispositionMapFactory,
         protected readonly ReportRepository $reportRepository,
         private readonly ExtensionConfiguration $extensionConfiguration,
     )
@@ -92,20 +95,31 @@ class ContentSecurityPolicyDetailsReporter extends AbstractContentSecurityPolicy
         return implode("\n", array_map(static fn (string $line) => $indention . $line, $lines));
     }
 
-    protected function isCspReport(Scope $scope, ServerRequestInterface $request): bool
+    /**
+     * The difference to the overridden base method is checking for `application/csp-report+enrichment`.
+     */
+    protected function isCspReport(
+        Scope $scope,
+        ServerRequestInterface $request,
+        ?DispositionConfiguration $dispositionConfiguration = null,
+    ): bool
     {
-        $normalizedParams = $request->getAttribute('normalizedParams');
-        $contentTypeHeader = $request->getHeaderLine('content-type');
-
         // @todo
         // + verify current session
         // + invoke rate limiter
         // + check additional scope (snippet enrichment)
 
-        $reportingUriBase = $this->policyProvider->getDefaultReportingUriBase($scope, $request, false);
-        return $request->getMethod() === 'POST'
-            && str_starts_with($normalizedParams->getRequestUri(), (string)$reportingUriBase)
-            && $contentTypeHeader === 'application/csp-report+enrichment';
+        $reportingUrl = $this->policyProvider->getReportingUrlFor($scope, $request, $dispositionConfiguration);
+        $reportingUriBase = $this->policyProvider->getDefaultReportingUriBase($scope, $request);
+        $contentTypeHeader = $request->getHeaderLine('content-type');
+
+        return
+            // stop, if reporting was explicitly disabled in `contentSecurityPolicyReportingUrl`
+            $reportingUrl !== null
+            // stop, if different reporting URI was configured in `contentSecurityPolicyReportingUrl`
+            && str_starts_with((string)$reportingUrl, (string)$reportingUriBase)
+            // stop, if request is not `POST` or `Content-Type` is not `application/csp-report`
+            && $request->getMethod() === 'POST' && $contentTypeHeader === 'application/csp-report+enrichment';
     }
 
     private function resolveScope(ServerRequestInterface $request): ?Scope
